@@ -1,114 +1,143 @@
-fetch("works.csv")
-    .then(function(response){
-        return response.text();
-    })
-    .then(function(data){
+// ファイルを直接開いても表示できるように、CSVと同じ内容を予備データとして保持します。
+// GitHub Pages / Live Serverでは works.csv を優先して読み込みます。
+const defaultWorks = [
+  {
+    "title": "タコ",
+    "description": "授業の課題で作成したもの",
+    "image": "./media/IMG_9944.jpg",
+    "link": "#",
+    "category": "UED",
+    "year": "2026"
+  },
+  {
+    "title": "ルンバ",
+    "description": "授業中の課題で作成したもの",
+    "image": "./media/IMG_9822.jpg",
+    "link": "#",
+    "category": "UED",
+    "year": "2026"
+  },
+  {
+    "title": "猫と犬",
+    "description": "家にいるとき",
+    "image": "./media/IMG_0018.jpg",
+    "link": "#",
+    "category": "cat",
+    "year": "2025"
+  }
+];
 
-        //CSVを行ごとに分割
-        var rows=data.trim().split(/\r?\n/);
-
-        //一行目は見出し
-        var headers=rows[0].split(",");
-
-        //二行目以降を作品データにする
-        var works=rows.slice(1).map(function(row){
-
-            var values=row.split(",");
-
-            var work={};
-
-            headers.forEach(function(header,index){
-                work[header]=values[index];
-            });
-
-            return work;
-        });
-        //Worksを表示する場所
-        var grid=document.getElementById("works-grid");
-        var categorySelect=document.getElementById("category");
-        var sortSelect=document.getElementById("sort");
-
-        //カテゴリ一覧を作る
-        var categories=[];
-
-        works.forEach(function(work){
-            //まだ追加されていないカテゴリならリストに追加  
-            if(!categories.includes(work.category)){
-                categories.push(work.category);
-            }
-        });
-        //selectにカテゴリを追加しwebページに表示させる
-        categories.forEach(function(category){
-            var option=document.createElement("option");
-            option.value=category;
-            option.textContent=category;
-            categorySelect.appendChild(option);
-        });
-        //作品を表示する関数
-
-function displayWorks() {
-    // 選択されたカテゴリとソート方法を取得
-    var selectedCategory = categorySelect.value;
-    var sortType = sortSelect.value;
-
-    // 元の作品データをコピー
-    var filteredWorks = works.slice();
-
-    // カテゴリの絞り込み
-    if (selectedCategory !== "all") {
-        filteredWorks = filteredWorks.filter(function(work) {
-             return work.category === selectedCategory;
-        });
-    }
-
-    // ソート
-    if (sortType === "new") {
-        filteredWorks.sort(function(a, b) {
-            return Number(b.year) - Number(a.year);
-        });
-    } else if (sortType === "old") {
-        filteredWorks.sort(function(a, b) {
-            return Number(a.year) - Number(b.year);
-        });
-    } else if (sortType === "title") {
-        filteredWorks.sort(function(a, b) {
-            return a.title.localeCompare(b.title, "ja");
-        });
-    }
-
-    // 以前の作品カードを消す
-    grid.innerHTML = "";
-
-    // 作品カードを１つずつ作成
-    filteredWorks.forEach(function(work) {
-        var card = document.createElement("article");
-        card.className = "work-card";
-
-        card.innerHTML =
-            '<a href="' + work.link + '">' +
-                '<img src="' + work.image + '" alt="' + work.title + '">' +
-                '<div class="work-info">' +
-                    '<p class="work-category">' + work.category + '</p>' +
-                    '<h4>' + work.title + '</h4>' +
-                    '<p>' + work.description + '</p>' +
-                    '<p class="work-year">' + work.year + '</p>' +
-                '</div>' +
-            '</a>';
-
-        grid.appendChild(card);
-    });
+function parseWorksCSV(data) {
+  const rows = data.replace(/^\uFEFF/, "").trim().split(/\r?\n/);
+  const headers = rows[0].split(",");
+  return rows.slice(1).filter(Boolean).map(function (row) {
+    const values = row.split(",");
+    const work = {};
+    headers.forEach(function (header, index) { work[header] = (values[index] || "").trim(); });
+    return work;
+  });
 }
 
-        displayWorks();
-        categorySelect.addEventListener("change",function(){
-            displayWorks();
-        });
+const worksPromise = location.protocol === "file:"
+  ? Promise.resolve(defaultWorks)
+  : fetch("works.csv")
+      .then(function (response) {
+        if (!response.ok) throw new Error("works.csv: " + response.status);
+        return response.text();
+      })
+      .then(parseWorksCSV)
+      .catch(function (error) {
+        console.warn("CSVの読み込みに失敗したため予備データを使用します", error);
+        return defaultWorks;
+      });
 
-        sortSelect.addEventListener("change",function(){
-            displayWorks();
-        });
+worksPromise.then(function (works) {
+    const grid = document.getElementById("works-grid");
+    const categorySelect = document.getElementById("category");
+    const sortSelect = document.getElementById("sort");
+    const dialog = document.getElementById("work-dialog");
+    const dialogImage = document.getElementById("dialog-image");
+    const dialogLink = document.getElementById("dialog-link");
+    const closeButton = dialog.querySelector(".dialog-close");
+    const categories = [...new Set(works.map(function (work) { return work.category; }))];
+    categories.forEach(function (category) {
+      const option = document.createElement("option");
+      option.value = category;
+      option.textContent = category;
+      categorySelect.appendChild(option);
+    });
 
-    })
+    function openWork(work) {
+      document.getElementById("dialog-title").textContent = work.title;
+      document.getElementById("dialog-description").textContent = work.description;
+      document.getElementById("dialog-category").textContent = work.category;
+      document.getElementById("dialog-year").textContent = work.year;
+      dialogImage.src = work.image;
+      dialogImage.alt = work.title;
+      // 「#」は未設定のリンクなので表示しない
+      if (work.link && work.link !== "#") {
+        dialogLink.href = work.link;
+        dialogLink.hidden = false;
+      } else {
+        dialogLink.removeAttribute("href");
+        dialogLink.hidden = true;
+      }
+      dialog.showModal();
+    }
+    closeButton.addEventListener("click", function () { dialog.close(); });
+    dialog.addEventListener("click", function (event) {
+      if (event.target === dialog) dialog.close();
+    });
+
+    function displayWorks() {
+      const selectedCategory = categorySelect.value;
+      const sortType = sortSelect.value;
+      const filteredWorks = works.filter(function (work) {
+        return selectedCategory === "all" || work.category === selectedCategory;
+      });
+      filteredWorks.sort(function (a, b) {
+        if (sortType === "new") return Number(b.year) - Number(a.year);
+        if (sortType === "old") return Number(a.year) - Number(b.year);
+        return a.title.localeCompare(b.title, "ja");
+      });
+      grid.replaceChildren();
+      filteredWorks.forEach(function (work) {
+        const card = document.createElement("article");
+        card.className = "work-card";
+        const button = document.createElement("button");
+        button.type = "button";
+        button.setAttribute("aria-label", work.title + "の詳細を見る");
+        const img = document.createElement("img");
+        img.src = work.image;
+        img.alt = work.title;
+        const info = document.createElement("div");
+        info.className = "work-info";
+        const category = document.createElement("p");
+        category.className = "work-category";
+        category.textContent = work.category;
+        const title = document.createElement("h4");
+        title.textContent = work.title;
+        const description = document.createElement("p");
+        description.textContent = work.description;
+        const year = document.createElement("p");
+        year.className = "work-year";
+        year.textContent = work.year;
+        info.append(category, title, description, year);
+        button.append(img, info);
+        button.addEventListener("click", function () { openWork(work); });
+        card.appendChild(button);
+        grid.appendChild(card);
+      });
+    }
+    categorySelect.addEventListener("change", displayWorks);
+    sortSelect.addEventListener("change", displayWorks);
+    displayWorks();
+  })
+  .catch(function (error) {
+    console.error("Worksの読み込みに失敗しました", error);
+    document.getElementById("works-error").hidden = false;
+  });
+
     var latitude = 35.6895;
     var longitude = 139.6917;
 

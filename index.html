@@ -5,7 +5,6 @@
         <meta name="viewport" content="width=device-width,initial-scale1.0">
         <title>Rintaro Sotono</title>
         <link rel="stylesheet" href="style.css">
-        <script src="https://cdn.jsdelivr.net/npm/p5@1.11.10/lib/p5.min.js"></script>
      </head>
     <body>
         <header>
@@ -19,7 +18,6 @@
         <main>
             <section id="top">
              <img src="./media/IMG_9944.jpg" width="80%">
-             <div id="p5"></div>
              <h1>
                 Rintaro Sotono<br>
                 portfolio
@@ -49,14 +47,26 @@
                 </select>
              </div>
              <div id="works-grid"></div>
+             <p id="works-error" role="status" hidden>作品データを読み込めませんでした。</p>
             </section>
         </main>
+        <!-- 作品をクリックしたときに開く詳細表示 -->
+        <dialog id="work-dialog" aria-labelledby="dialog-title">
+          <button type="button" class="dialog-close" aria-label="閉じる">×</button>
+          <img id="dialog-image" alt="">
+          <div class="dialog-content">
+            <p id="dialog-category" class="dialog-meta"></p>
+            <h3 id="dialog-title"></h3>
+            <p id="dialog-description"></p>
+            <p id="dialog-year" class="dialog-meta"></p>
+            <a id="dialog-link" href="#" target="_blank" rel="noopener noreferrer" hidden>作品ページを見る ↗</a>
+          </div>
+        </dialog>
         <footer>
             <span>©2026 Rintaro Sotono</span>
 
         </footer>
 
         <script src="works.js"></script>
-        <script src="sketch.js"></script>
     </body>
 </html>
